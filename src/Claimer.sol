@@ -7,17 +7,21 @@ contract Claimer {
 
     uint256 constant monthsInSeconds = 2628000;
 
-    constructor(address payable beneficiary) payable {
+    constructor() payable {
         // Get the vestTokenAddr address
         VestingAgreement vestTokenAddr = VestClaimFactory(msg.sender).vestTokenAddr();
         
+        address beneficiary = vestTokenAddr.ownerOf(address(this));
+
         // Get the vesting parameters
         (
             uint128 cliffMonths,
             uint128 vestMonths,
             uint128 startTime128,
             uint128 amount
-        ) = vestTokenAddr.contractDetails(address(this));
+        ) = vestTokenAddr.contractDetails(beneficiary);
+
+        
 
         uint256 cliffTime = cliffMonths * 2628000; // Seconds in a non-leap-year div 12
         uint256 startTime = uint256(startTime128);
