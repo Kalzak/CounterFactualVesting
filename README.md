@@ -65,4 +65,4 @@ forge build
 forge test
 ```
 
-NOTE: The test suite takes advantage of Foundry's fuzzing capabilities to test a wide variety of inputs across the majority of functions. The amount of runs can be changed in `foundry.toml` under the `fuzz` section, but is currently set to `256` for quick testing.
+NOTE: The test suite takes advantage of Foundry's fuzzing capabilities to test a wide variety of inputs when issuing vesting agreements and claiming funds. The amount of runs can be changed in `foundry.toml` under the `fuzz` section, but is currently set to `256` for quick testing.
