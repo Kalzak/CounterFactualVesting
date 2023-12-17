@@ -44,7 +44,7 @@ There are some proposed EIPs that refer to the `SELFDESTRUCT` (SD) opcode. As of
 - [EIP-6780](https://eips.ethereum.org/EIPS/eip-6780)
 - [EIP-6046](https://eips.ethereum.org/EIPS/eip-6046)
 
-The first EIP in the list above is simply a "meta" EIP and will not make any changes to how the EVM handles SD. For the other two, they still allow contracts to created and deleted within the same transaction, meaning this counterfactual approach to vesting is still seems viable at this point, however it is not guaranteed.
+The first EIP in the list above is simply a "meta" EIP and will not make any changes to how the EVM handles SD. For the other two, they still allow contracts to created and deleted within the same transaction, meaning this counterfactual approach to vesting still seems viable at this point, however it is not guaranteed.
 
 ## Compilation and testing
 
