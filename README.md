@@ -1,4 +1,4 @@
-# CounterFactualVesting
+# CounterfactualVesting
 
 > _"Can't steal from a contact with no code!"_
 
