@@ -18,13 +18,14 @@ contract Claimer {
 
         // Get the vesting parameters
         (
-            uint128 cliffMonths,
-            uint128 vestMonths,
+            uint16 cliffMonths,
+            uint16 vestMonths,
+            address asset,
             uint128 startTime_u128,
             uint128 amount
         ) = vestTokenAddr.contractDetails(beneficiary);
 
-        uint256 remainingAmount = address(this).balance;
+        uint256 remainingAmount = IERC20(asset).balanceOf(address(this));
 
         // Vesting must have started
         uint256 startTime = startTime_u128;
@@ -35,7 +36,7 @@ contract Claimer {
 
         // If entire vest period has passed send all funds
         if(block.timestamp >= startTime + ((cliffMonths + vestMonths) * monthsInSeconds)) {
-            send(beneficiary, remainingAmount);
+            IERC20(asset).transfer(beneficiary, remainingAmount);
             return;
         }
 
@@ -45,17 +46,12 @@ contract Claimer {
         uint256 paidMonths = (amount - remainingAmount) / amountPerMonth;
         uint256 amountToPay = (currentMonth - paidMonths) * amountPerMonth;
 
-        send(beneficiary, amountToPay);
+        IERC20(asset).transfer(beneficiary, amountToPay);
 
         // NOTE: This is breaking right now because self-destruct with transfer to self deletes ether
         //       https://ethereum.github.io/execution-specs/autoapi/ethereum/shanghai/vm/instructions/system/index.html#selfdestruct
         //       Read the `set_account_balance` function calls to see how EVM specification handles selfdestruct
         //       Just a placeholder but will replace with ERC20 logic
         selfdestruct(payable(address(this)));
-    }
-
-    function send(address beneficiary, uint256 amount) internal {
-        (bool success, ) = beneficiary.call{value: amount, gas: 10000}("");
-        require(success, "failed");
     }
 }

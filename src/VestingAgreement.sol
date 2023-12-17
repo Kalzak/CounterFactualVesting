@@ -5,8 +5,9 @@ import { ERC721 } from "openzeppelin-contracts/contracts/token/ERC721/ERC721.sol
 contract VestingAgreement is ERC721 {
 
     struct VestingParameters {
-        uint128 cliffMonths;
-        uint128 vestMonths;
+        uint16 cliffMonths;
+        uint16 vestMonths;
+        address asset;
         uint128 startTime;
         uint128 amount;
     }
@@ -22,8 +23,9 @@ contract VestingAgreement is ERC721 {
     function mint(
         address recipient,
         address counterFactualAddress,
-        uint128 cliffMonths,
-        uint128 vestMonths,
+        uint16 cliffMonths,
+        uint16 vestMonths,
+        address asset,
         uint128 startTime,
         uint128 amount
     ) public {
@@ -33,6 +35,7 @@ contract VestingAgreement is ERC721 {
         VestingParameters memory vp = VestingParameters(
             cliffMonths,
             vestMonths,
+            asset,
             startTime,
             amount
         );

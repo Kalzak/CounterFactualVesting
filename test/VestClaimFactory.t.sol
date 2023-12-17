@@ -2,6 +2,8 @@
 pragma solidity 0.8.20;
 
 import {Test, console2} from "forge-std/Test.sol";
+import {TestToken} from "./TestToken.sol"; 
+
 import {VestClaimFactory} from "../src/VestClaimFactory.sol";
 import {VestingAgreement} from "../src/VestingAgreement.sol";
 import {Claimer} from "../src/Claimer.sol";
@@ -9,6 +11,7 @@ import {Claimer} from "../src/Claimer.sol";
 contract VestClaimFactoryTest is Test {
     VestClaimFactory public vcf;
     VestingAgreement public va;
+    TestToken public tt;
 
     uint256 constant monthsInSeconds = 2628000;
 
@@ -29,6 +32,8 @@ contract VestClaimFactoryTest is Test {
         // Set the vesting agreement token contract address
         vcf.setVestTokenAddr(va);
         
+        tt = new TestToken();
+
         vm.stopPrank();
     }
 
@@ -59,11 +64,13 @@ contract VestClaimFactoryTest is Test {
         // Test
         vm.prank(nonIssuer);
         vm.expectRevert("!issuer");
-        vcf.issueVestingContract{value: 0}(
+        vcf.issueVestingContract(
             beneficiary, 
             1, 
             1, 
-            uint128(block.timestamp)
+            address(tt),
+            uint128(block.timestamp),
+            0
         );
     }
 
@@ -73,26 +80,30 @@ contract VestClaimFactoryTest is Test {
 
     function test_issue_vest_sends_funds() public {
         // Setup
-        uint256 amount = 2 ether;
-        vm.deal(issuer, amount);
+        uint128 amount = 2 ether;
+        tt.mint(issuer, amount);
+        vm.prank(issuer);
+        tt.approve(address(vcf), amount);
         
         // Test
         vm.prank(issuer);
-        vcf.issueVestingContract{value: amount}(
+        vcf.issueVestingContract(
             beneficiary, 
             1, 
             1, 
-            uint128(block.timestamp)
+            address(tt),
+            uint128(block.timestamp),
+            amount
         );
 
         address fundsAddr = vcf.calculateFundsAddress(beneficiary, 0);
-        assertEq(fundsAddr.balance, amount, "Contract did not get funds");
+        assertEq(tt.balanceOf(fundsAddr), amount, "Contract did not get funds");
     }
 
     function test_issue_vest_nondivisible_amount_revert(
         uint128 amount,
-        uint128 cliffMonths,
-        uint128 vestMonths
+        uint16 cliffMonths,
+        uint16 vestMonths
     ) public {
         // Fuzz constraints
         cliffMonths %= 1200;
@@ -101,31 +112,39 @@ contract VestClaimFactoryTest is Test {
         vm.assume(amount % (cliffMonths + vestMonths) != 0);
         
         // Setup
-        vm.deal(issuer, amount);
+        tt.mint(issuer, amount);
+        vm.prank(issuer);
+        tt.approve(address(vcf), amount);
         
         // Test
         vm.prank(issuer);
         vm.expectRevert("no clean divide");
-        vcf.issueVestingContract{value: amount}(
+        vcf.issueVestingContract(
             beneficiary,
             cliffMonths,
             vestMonths,
-            uint128(block.timestamp)
+            address(tt),
+            uint128(block.timestamp),
+            amount
         );
     }
 
     function test_issue_vest_mints_token() public {
         // Setup
-        uint256 amount = 2 ether;
-        vm.deal(issuer, amount);
+        uint128 amount = 2 ether;
+        tt.mint(issuer, amount);
+        vm.prank(issuer);
+        tt.approve(address(vcf), amount);
         
         // Test
         vm.prank(issuer);
-        vcf.issueVestingContract{value: amount}(
+        vcf.issueVestingContract(
             beneficiary, 
             1, 
             1, 
-            uint128(block.timestamp)
+            address(tt),
+            uint128(block.timestamp),
+            amount
         );
 
         uint256 balance = va.balanceOf(beneficiary);
@@ -138,8 +157,8 @@ contract VestClaimFactoryTest is Test {
 
     function test_claim_retreives_funds_after_cliff(
         uint128 amount,
-        uint128 cliffMonths,
-        uint128 vestMonths
+        uint16 cliffMonths,
+        uint16 vestMonths
     ) public {
         // Fuzz constraints
         cliffMonths %= 1200;
@@ -149,15 +168,19 @@ contract VestClaimFactoryTest is Test {
         vm.assume(amount > cliffMonths + vestMonths);
 
         // Setup
-        vm.deal(issuer, amount);
+        tt.mint(issuer, amount);
+        vm.prank(issuer);
+        tt.approve(address(vcf), amount);
         
         // Test
         vm.prank(issuer);
-        vcf.issueVestingContract{value: amount}(
+        vcf.issueVestingContract(
             beneficiary, 
             cliffMonths, 
             vestMonths, 
-            uint128(block.timestamp)
+            address(tt),
+            uint128(block.timestamp),
+            amount
         );
 
         vm.warp(block.timestamp + (monthsInSeconds * cliffMonths));
@@ -166,7 +189,7 @@ contract VestClaimFactoryTest is Test {
         vm.prank(beneficiary);
         vcf.claim(fundsAddr, 0);
 
-        uint256 actualBalance = beneficiary.balance;
+        uint256 actualBalance = tt.balanceOf(beneficiary);
         uint256 expectedBalance = (amount / (cliffMonths + vestMonths)) * cliffMonths;
 
         assertEq(expectedBalance, actualBalance, "unexpected payment amount");
@@ -174,8 +197,8 @@ contract VestClaimFactoryTest is Test {
 
     function test_claim_retreives_funds_after_vest(
         uint128 amount,
-        uint128 cliffMonths,
-        uint128 vestMonths
+        uint16 cliffMonths,
+        uint16 vestMonths
     ) public {
         // Fuzz constraints
         cliffMonths %= 1200;
@@ -185,15 +208,19 @@ contract VestClaimFactoryTest is Test {
         vm.assume(amount > cliffMonths + vestMonths);
 
         // Setup
-        vm.deal(issuer, amount);
+        tt.mint(issuer, amount);
+        vm.prank(issuer);
+        tt.approve(address(vcf), amount);
         
         // Test
         vm.prank(issuer);
-        vcf.issueVestingContract{value: amount}(
+        vcf.issueVestingContract(
             beneficiary, 
             cliffMonths, 
             vestMonths, 
-            uint128(block.timestamp)
+            address(tt),
+            uint128(block.timestamp),
+            amount
         );
 
         vm.warp(block.timestamp + (monthsInSeconds * (cliffMonths + vestMonths)));
@@ -202,7 +229,7 @@ contract VestClaimFactoryTest is Test {
         vm.prank(beneficiary);
         vcf.claim(fundsAddr, 0);
 
-        uint256 actualBalance = beneficiary.balance;
+        uint256 actualBalance = tt.balanceOf(beneficiary);
         uint256 expectedBalance = amount;
 
         assertEq(expectedBalance, actualBalance, "unexpected payment amount");

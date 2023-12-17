@@ -2,6 +2,7 @@ pragma solidity 0.8.20;
 
 import { Ownable } from "openzeppelin-contracts/contracts/access/Ownable.sol";
 import { Create2 } from "openzeppelin-contracts/contracts/utils/Create2.sol";
+import { IERC20 } from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 import { VestingAgreement } from "./VestingAgreement.sol";
 import { Claimer } from "./Claimer.sol";
 
@@ -28,14 +29,16 @@ contract VestClaimFactory is Ownable {
      */
     function issueVestingContract(
         address beneficiary,
-        uint128 cliffMonths,
-        uint128 vestMonths,
-        uint128 startTime
-    ) public payable onlyIssuer {
+        uint16 cliffMonths,
+        uint16 vestMonths,
+        address asset,
+        uint128 startTime,
+        uint128 amount
+    ) public onlyIssuer {
         // Cannot vest an amount of zero
-        require(msg.value != 0, "zero amount");
+        require(amount != 0, "zero amount");
         // Vest amount must be cleanly divisible by number of months
-        require(msg.value % (cliffMonths + vestMonths) == 0, "no clean divide");
+        require(amount % (cliffMonths + vestMonths) == 0, "no clean divide");
         // Total vest time period cannot be more than 100 years
         require(cliffMonths + vestMonths <= 1200, "vest>100yrs");
         // Total vest time cannot be zero
@@ -48,13 +51,13 @@ contract VestClaimFactory is Ownable {
             fundsAddr,
             cliffMonths,
             vestMonths,
+            asset,
             startTime,
-            uint128(msg.value)
+            amount
         );
 
-        // Send funds
-        (bool success, ) = fundsAddr.call{value: msg.value}("");
-        require(success, "claimaddr reverted");
+        // Transfer funds
+        IERC20(asset).transferFrom(msg.sender, fundsAddr, amount);
     }
 
     /**
