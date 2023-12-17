@@ -11,23 +11,28 @@ contract VestClaimFactory is Ownable {
     mapping(address => uint256) public numContracts;
     mapping(address => bool) issuers;
 
-    constructor() Ownable(msg.sender) {}
+    modifier onlyIssuer() {
+        require(issuers[msg.sender] == true, "!issuer");
+        _;
+    }
+
+    constructor(address _owner) Ownable(_owner) {}
 
     function issueVestingContract(
         address beneficiary,
         uint128 cliffMonths,
         uint128 vestMonths,
         uint128 startTime
-    ) public payable {
+    ) onlyIssuer public payable {
         // Validate that the amount is cleanly divisible by the number of months
-        require(msg.value % cliffMonths + vestMonths == 0, "invalid amount");
+        require(msg.value % (cliffMonths + vestMonths) == 0, "invalid amount");
         address fundsAddr = calculateFundsAddress(beneficiary, numContracts[beneficiary]);
         vestTokenAddr.mint(beneficiary, fundsAddr, cliffMonths, vestMonths, startTime, uint128(msg.value));
         (bool success, bytes memory data) = fundsAddr.call{value: msg.value}("");
 
         // Empty return from call to empty contract
         require(data.length == 0, "unexpected return");
-        require(success, "failed");
+        require(success, "has code and reverted");
     }
 
     function calculateFundsAddress(
@@ -45,12 +50,12 @@ contract VestClaimFactory is Ownable {
         Create2.deploy(0, salt, type(Claimer).creationCode);
     }
 
-    function setIssuer(address issuer, bool isIssuer) external {
+    function setIssuer(address issuer, bool isIssuer) onlyOwner external {
         issuers[issuer] = isIssuer;
     }
 
     function setVestTokenAddr(VestingAgreement _vestTokenAddr) onlyOwner public {
-        require(vestTokenAddr != VestingAgreement(address(0)));
+        require(_vestTokenAddr != VestingAgreement(address(0)));
         vestTokenAddr = _vestTokenAddr;
     }
 
