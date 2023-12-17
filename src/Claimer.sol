@@ -47,6 +47,10 @@ contract Claimer {
 
         send(beneficiary, amountToPay);
 
+        // NOTE: This is breaking right now because self-destruct with transfer to self deletes ether
+        //       https://ethereum.github.io/execution-specs/autoapi/ethereum/shanghai/vm/instructions/system/index.html#selfdestruct
+        //       Read the `set_account_balance` function calls to see how EVM specification handles selfdestruct
+        //       Just a placeholder but will replace with ERC20 logic
         selfdestruct(payable(address(this)));
     }
 
