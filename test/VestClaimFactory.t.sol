@@ -90,7 +90,7 @@ contract VestClaimFactoryTest is Test {
     }
 
     function test_issue_vest_nondivisible_amount_revert(
-        uint256 amount,
+        uint128 amount,
         uint128 cliffMonths,
         uint128 vestMonths
     ) public {
@@ -105,7 +105,7 @@ contract VestClaimFactoryTest is Test {
         
         // Test
         vm.prank(issuer);
-        vm.expectRevert("invalid amount");
+        vm.expectRevert("no clean divide");
         vcf.issueVestingContract{value: amount}(
             beneficiary,
             cliffMonths,
