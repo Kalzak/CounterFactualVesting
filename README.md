@@ -46,6 +46,12 @@ There are some proposed EIPs that refer to the `SELFDESTRUCT` (SD) opcode. As of
 
 The first EIP in the list above is simply a "meta" EIP and will not make any changes to how the EVM handles SD. For the other two, they still allow contracts to created and deleted within the same transaction, meaning this counterfactual approach to vesting still seems viable at this point, however it is not guaranteed.
 
+## Does this support native Ether payments?
+
+Due to the way that the `SELFDESTRUCT` (SD) opcode is described in the [EVM Specification](https://ethereum.github.io/execution-specs/autoapi/ethereum/shanghai/vm/instructions/system/index.html#selfdestruct), it's not possible to send Ether to these counterfactual addresses. The way the `Claimer` contract works is by being deployed, sending unlocked funds and then SD-ing itself. When using SD you specify a recipient for all Ether held on the contract, but we need the Ether to stay in the same address for claiming later as more funds become available. Due to the way the SD opcode is specified, it sets the balance of the new recipient address and then sets the to-be-deleted contract's balance to zero. In other words it transfers to itself, and then deletes its balance.
+
+Since both balance and storage is cleared when using SD, only assets whose ownership can be tracked using storage from a different contract address can be used, hence the support for ERC20 tokens.
+
 ## Compilation and testing
 
 ```rust
