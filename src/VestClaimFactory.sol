@@ -74,20 +74,34 @@ contract VestClaimFactory is Ownable {
         return calculateCreate2Deployment(type(Claimer).creationCode, salt);
     }
 
+    /**
+     * @notice Calculates the address a create2 would deploy at
+     * @param creationCode the init code of the contract that will be deployed
+     * @param salt         the unique salt derived from beneficiary address and contract num
+     * @return addr the address if deployed using create2
+     */
     function calculateCreate2Deployment(
         bytes memory creationCode,
         bytes32 salt
-    ) internal view returns (address hashedCreate2Data) {
+    ) internal view returns (address addr) {
         assembly {
-            let hashedCode := keccak256(add(creationCode, 0x20), mload(creationCode))
-            let totalSize := add(0x2, add(0x14, add(0x20, 0x20)))
-            let memPtr := mload(0x40)
-            mstore(0x40, add(memPtr, 0x60))
-            mstore(memPtr, or(shl(0xa0, 0xff), address()))
-            mstore(add(memPtr, 0x20), salt)
-            mstore(add(memPtr, 0x40), hashedCode)
-            hashedCreate2Data := keccak256(add(memPtr, 0xb), sub(totalSize, 0x1))
-            hashedCreate2Data := and(hashedCreate2Data, sub(shl(0xa0, 0x1), 0x1))
+            /*
+             * Create2 deployed address can be calculated as follows:
+             * keccak( 0xff + <deployer> + <salt> + <codeHash> )[12:]
+             * In this case "+" means "concatenate"
+             */
+
+            let ptr := mload(0x40)
+            // Update free memory pointer (effectively alloc 96 bytes of memory)
+            mstore(0x40, add(ptr, 0x60))
+            // Mem-store the <deployer> address (which is this contract address)
+            mstore(ptr, or(shl(0xa0, 0xff), address()))
+            // Mem-store the <salt> (needed for unique deploy add for beneficiary) 
+            mstore(add(ptr, 0x20), salt)
+            // Mem-store the <codeHash> (hash of the `Claimer` deployment bytecode)
+            mstore(add(ptr, 0x40), keccak256(add(creationCode, 0x20), mload(creationCode)))
+            // Hash all mem-stored data above and cut off first 12 bytes to get address
+            addr := and(keccak256(add(ptr, 0xb), 0x55), sub(shl(0xa0, 0x1), 0x1))
         }
     }
 
