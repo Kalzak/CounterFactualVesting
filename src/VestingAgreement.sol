@@ -43,7 +43,7 @@ contract VestingAgreement is ERC721 {
         address asset,
         uint128 startTime,
         uint128 amount
-    ) public {
+    ) external {
         require(msg.sender == vestClaimFactory, "!vestclaimfactory");
 
         _mint(recipient, uint256(uint160(counterFactualAddress)));    

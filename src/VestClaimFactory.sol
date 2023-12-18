@@ -20,6 +20,26 @@ contract VestClaimFactory is Ownable {
     constructor(address _owner) Ownable(_owner) {}
 
     /**
+     * @notice Sets the vesting agreement address
+     * @dev Only callable once, by owner
+     * @param _vestTokenAddr The vesting agreement contract address
+     */
+    function setVestTokenAddr(VestingAgreement _vestTokenAddr) external onlyOwner {
+        require(_vestTokenAddr != VestingAgreement(address(0)));
+        vestTokenAddr = _vestTokenAddr;
+    }
+
+    /**
+     * @notice Sets the issuer role state for an addres
+     * @dev Only callably by owner
+     * @param issuer   The address to have its issuer role modified
+     * @param isIssuer The new issuer role status
+     */
+    function setIssuer(address issuer, bool isIssuer) external onlyOwner {
+        issuers[issuer] = isIssuer;
+    }
+
+    /**
      * @notice Creates a vesting agreement and allocates funds to counterfactual address
      * @dev Minted VestingAgreement ID is the same as counterfactual address
      * @param beneficiary The address that will recieve the funds
@@ -34,7 +54,7 @@ contract VestClaimFactory is Ownable {
         address asset,
         uint128 startTime,
         uint128 amount
-    ) public onlyIssuer {
+    ) external onlyIssuer {
         // Cannot vest an amount of zero
         require(amount != 0, "zero amount");
         // Vest amount must be cleanly divisible by number of months
@@ -58,6 +78,18 @@ contract VestClaimFactory is Ownable {
 
         // Transfer funds
         IERC20(asset).transferFrom(msg.sender, fundsAddr, amount);
+    }
+
+    /**
+     * @notice Called by a beneficiary, claims funds from counterfactual address
+     * @dev Deploys claimer contract at funds address, self-destructs after
+     * @param fundsAddr   The counterfactual address to claim funds from
+     * @param contractNum The number of the vesting agreement (1st is 0, then 1 etc...)
+     */
+    function claim(address fundsAddr, uint256 contractNum) external {
+        require(vestTokenAddr.ownerOf(fundsAddr) == msg.sender);
+        bytes32 salt = calculateSalt(msg.sender, contractNum);
+        Create2.deploy(0, salt, type(Claimer).creationCode);
     }
 
     /**
@@ -103,38 +135,6 @@ contract VestClaimFactory is Ownable {
             // Hash all mem-stored data above and cut off first 12 bytes to get address
             addr := and(keccak256(add(ptr, 0xb), 0x55), sub(shl(0xa0, 0x1), 0x1))
         }
-    }
-
-    /**
-     * @notice Called by a beneficiary, claims funds from counterfactual address
-     * @dev Deploys claimer contract at funds address, self-destructs after
-     * @param fundsAddr   The counterfactual address to claim funds from
-     * @param contractNum The number of the vesting agreement (1st is 0, then 1 etc...)
-     */
-    function claim(address fundsAddr, uint256 contractNum) external {
-        require(vestTokenAddr.ownerOf(fundsAddr) == msg.sender);
-        bytes32 salt = calculateSalt(msg.sender, contractNum);
-        Create2.deploy(0, salt, type(Claimer).creationCode);
-    }
-
-    /**
-     * @notice Sets the issuer role state for an addres
-     * @dev Only callably by owner
-     * @param issuer   The address to have its issuer role modified
-     * @param isIssuer The new issuer role status
-     */
-    function setIssuer(address issuer, bool isIssuer) external onlyOwner {
-        issuers[issuer] = isIssuer;
-    }
-
-    /**
-     * @notice Sets the vesting agreement address
-     * @dev Only callable once, by owner
-     * @param _vestTokenAddr The vesting agreement contract address
-     */
-    function setVestTokenAddr(VestingAgreement _vestTokenAddr) external onlyOwner {
-        require(_vestTokenAddr != VestingAgreement(address(0)));
-        vestTokenAddr = _vestTokenAddr;
     }
 
     /**
