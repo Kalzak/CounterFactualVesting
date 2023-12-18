@@ -71,7 +71,24 @@ contract VestClaimFactory is Ownable {
         uint256 contractNum
     ) public view returns (address) {
         bytes32 salt = calculateSalt(beneficiary, contractNum);
-        return Create2.computeAddress(salt, keccak256(type(Claimer).creationCode));
+        return calculateCreate2Deployment(type(Claimer).creationCode, salt);
+    }
+
+    function calculateCreate2Deployment(
+        bytes memory creationCode,
+        bytes32 salt
+    ) internal view returns (address hashedCreate2Data) {
+        assembly {
+            let hashedCode := keccak256(add(creationCode, 0x20), mload(creationCode))
+            let totalSize := add(0x2, add(0x14, add(0x20, 0x20)))
+            let memPtr := mload(0x40)
+            mstore(0x40, add(memPtr, 0x60))
+            mstore(memPtr, or(shl(0xa0, 0xff), address()))
+            mstore(add(memPtr, 0x20), salt)
+            mstore(add(memPtr, 0x40), hashedCode)
+            hashedCreate2Data := keccak256(add(memPtr, 0xb), sub(totalSize, 0x1))
+            hashedCreate2Data := and(hashedCreate2Data, sub(shl(0xa0, 0x1), 0x1))
+        }
     }
 
     /**
