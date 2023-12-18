@@ -1,7 +1,6 @@
 pragma solidity 0.8.20;
 
 import { Ownable } from "openzeppelin-contracts/contracts/access/Ownable.sol";
-import { Create2 } from "openzeppelin-contracts/contracts/utils/Create2.sol";
 import { IERC20 } from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 import { VestingAgreement } from "./VestingAgreement.sol";
 import { Claimer } from "./Claimer.sol";
@@ -89,7 +88,7 @@ contract VestClaimFactory is Ownable {
     function claim(address fundsAddr, uint256 contractNum) external {
         require(vestTokenAddr.ownerOf(fundsAddr) == msg.sender);
         bytes32 salt = calculateSalt(msg.sender, contractNum);
-        Create2.deploy(0, salt, type(Claimer).creationCode);
+        create2Deploy(type(Claimer).creationCode, salt);
     }
 
     /**
@@ -107,16 +106,35 @@ contract VestClaimFactory is Ownable {
     }
 
     /**
+     * @notice Create2 deploys some creation code with a given salt
+     * @dev Always deploys with zero value
+     * @param creationCode the init code of the contract that will be deployed
+     * @param salt         the unique salt derived from beneficiary addr and contractnum
+     */
+    function create2Deploy(
+        bytes memory creationCode,
+        bytes32 salt
+    ) internal {
+        bool success;
+        assembly ("memory-safe") {
+            // create2 takes args ( <value>, <codeOffset>, <codeLen>, <salt>)
+            let addr := create2(0, add(creationCode, 0x20), mload(creationCode), salt)
+            success := not(eq(addr, 0x0))
+        }
+        require(success, "create2 failed");
+    }
+
+    /**
      * @notice Calculates the address a create2 would deploy at
      * @param creationCode the init code of the contract that will be deployed
-     * @param salt         the unique salt derived from beneficiary address and contract num
+     * @param salt         the unique salt derived from beneficiary addr and contractnum
      * @return addr the address if deployed using create2
      */
     function calculateCreate2Deployment(
         bytes memory creationCode,
         bytes32 salt
     ) internal view returns (address addr) {
-        assembly {
+        assembly ("memory-safe") {
             /*
              * Create2 deployed address can be calculated as follows:
              * keccak( 0xff + <deployer> + <salt> + <codeHash> )[12:]
