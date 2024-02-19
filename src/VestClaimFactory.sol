@@ -63,8 +63,8 @@ contract VestClaimFactory is Ownable {
         // Total vest time cannot be zero
         require(cliffMonths + vestMonths != 0, "zero vest time");
 
-        address fundsAddr = calculateFundsAddress(beneficiary, numContracts[beneficiary]);
-        
+        address fundsAddr = calculateFundsAddress(beneficiary, numContracts[beneficiary]++);
+
         vestTokenAddr.mint(
             beneficiary,
             fundsAddr,
@@ -85,9 +85,9 @@ contract VestClaimFactory is Ownable {
      * @param fundsAddr   The counterfactual address to claim funds from
      * @param contractNum The number of the vesting agreement (1st is 0, then 1 etc...)
      */
-    function claim(address fundsAddr, uint256 contractNum) external {
+    function claim(address fundsAddr, uint256 contractNum, address originalOwner) external {
         require(vestTokenAddr.ownerOf(fundsAddr) == msg.sender);
-        bytes32 salt = calculateSalt(msg.sender, contractNum);
+        bytes32 salt = calculateSalt(originalOwner, contractNum);
         create2Deploy(type(Claimer).creationCode, salt);
     }
 
